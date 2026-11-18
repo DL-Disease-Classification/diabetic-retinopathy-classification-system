@@ -1,3 +1,5 @@
+# Main libraries. Versions will be pinned before training starts (for reproducibility).
+# Colab already has most of these installed.
 kagglehub
 numpy
 pandas

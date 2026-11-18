@@ -2,7 +2,7 @@
 
 > Graduation project — Palestine Technical University - Kadoorie, Information Technology and Artificial Intelligence department, 2026-2027
 >
-> Team: Malak Battatt (lead), Mayar Battatt, Hassan Sheikh Qasim · Supervisor: Dr. Samer Sweileh
+> Team: Malak Battatt (lead), Mayar Battat, Hassan Sheikh Qasim · Supervisor: Dr. Samer Sweileh
 
 ## Overview
 
@@ -39,7 +39,7 @@ The model also **explains its prediction**: it highlights the regions of the ima
 ## Key findings so far
 
 - The Kaggle dataset we started from has **heavy train/test leakage**. Augmented copies of the same photo appear in train, validation and test: 46.5% of test files are versions of a training photo, rising to 95% for the Severe grade.
-- We therefore **rebuild the split ourselves** and evaluate on an **independent external dataset**. See [`1_datasets/README.md`](1_datasets/README.md) and [`notes/decision_log.md`](notes/decision_log.md).
+- We will therefore **rebuild the split ourselves**. We also plan to evaluate on an **independent external dataset** (Messidor-2, pending supervisor approval). See [`1_datasets/README.md`](1_datasets/README.md) and [`notes/decision_log.md`](notes/decision_log.md).
 
 ## Results
 
@@ -69,18 +69,37 @@ notes/                 decision log and working notes
 
 We work in **Google Colab**.
 
-1. Open a notebook from this repo in Colab: **File → Open notebook → GitHub**, then paste this repo's URL.
+1. Open a notebook from this repo in Colab: **File → Open notebook → GitHub**. The first time, when Colab asks to authorise GitHub, **grant access to the `DL-Disease-Classification` organisation**, or the repo won't appear.
 2. Get a Kaggle API token (kaggle.com → Settings → API → *Generate New Token*). Add it to Colab **Secrets** (🔑 icon) as `KAGGLE_API_TOKEN` with notebook access on.
-3. Run the notebooks in folder order. Each notebook downloads the data it needs. Download instructions are in [`1_datasets/README.md`](1_datasets/README.md).
+3. Run the notebook's first cell, which clones this repo so the shared code in `src/` can be imported:
+
+```python
+# First cell of every notebook: get the repo's shared code (src/) into Colab
+REPO = "diabetic-retinopathy-classification-system"
+!git clone -q https://github.com/DL-Disease-Classification/{REPO}.git
+import sys; sys.path.append(f"/content/{REPO}")
+```
+
+If the repo is **private**, create a read-only GitHub token (GitHub → Settings → Developer settings → *Fine-grained tokens*, access to this repo only, permission *Contents: Read*). Add it to Colab Secrets as `GITHUB_TOKEN`, and clone with:
+
+```python
+from google.colab import userdata
+token = userdata.get("GITHUB_TOKEN")
+!git clone -q https://x-access-token:{token}@github.com/DL-Disease-Classification/{REPO}.git
+```
+
+4. Run the notebooks in folder order. Each notebook downloads the data it needs. Download instructions are in [`1_datasets/README.md`](1_datasets/README.md).
+
+New to the tools? Start with the team's learning plan: [`0_domain_study/study_plan.md`](0_domain_study/study_plan.md).
 
 Images and model weights are **not stored in this repo**. They're too large, and the datasets have their own licences.
 
 ## Team workflow
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short:
-- One GitHub Issue per task.
-- One branch per task.
-- Merge through a pull request reviewed by another team member.
+- Real tasks get a GitHub Issue, and the branch is named after it (`12-duplicate-threshold`).
+- Small changes (typos, docs tidy-ups) skip the issue and use a descriptive branch name.
+- Everything merges through a pull request reviewed by another team member.
 
 ## Disclaimer
 
