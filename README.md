@@ -1,7 +1,8 @@
 # Diabetic Retinopathy Grading with Explainable AI
 
 > Graduation project — Palestine Technical University - Kadoorie, Information Technology and Artificial Intelligence department, 2026-2027
-> Team: Malak Battatt (lead), Mayar Battatt, Hassan Sheikh Qasim· Supervisor: Dr. Samer Sweileh
+>
+> Team: Malak Battatt (lead), Mayar Battatt, Hassan Sheikh Qasim · Supervisor: Dr. Samer Sweileh
 
 ## Overview
 
@@ -23,7 +24,7 @@ The model also **explains its prediction**: it highlights the regions of the ima
 
 | Stage | Folder | Status |
 |---|---|---|
-| Domain study | `0_domain_study/` | ⬜ not started / 🟡 in progress / ✅ done |
+| Domain study | `0_domain_study/` | 🟡 |
 | Dataset selection | `1_datasets/` | 🟡 |
 | Data exploration & audit | `2_data_exploration/` | 🟡 |
 | Data preparation | `3_data_preparation/` | ⬜ |
@@ -32,6 +33,8 @@ The model also **explains its prediction**: it highlights the regions of the ima
 | Explainability | `6_explainability/` | ⬜ |
 | Web app | `7_web_app/` | ⬜ |
 | Final report & presentation | `8_final_presentation/` | ⬜ |
+
+⬜ not started · 🟡 in progress · ✅ done
 
 ## Key findings so far
 
