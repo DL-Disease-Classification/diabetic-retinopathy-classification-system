@@ -1,0 +1,28 @@
+# Data and images (download instructions in 1_datasets/README.md)
+data/
+*.zip
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.onnx
+*.safetensors
+
+# Secrets
+kaggle.json
+.env
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

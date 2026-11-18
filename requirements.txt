@@ -1,0 +1,12 @@
+# Core (Colab already has most of these; pin versions once training starts)
+kagglehub
+numpy
+pandas
+matplotlib
+scikit-learn
+pillow
+opencv-python
+torch
+torchvision
+timm
+grad-cam
