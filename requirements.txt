@@ -1,4 +1,3 @@
-# Core (Colab already has most of these; pin versions once training starts)
 kagglehub
 numpy
 pandas
