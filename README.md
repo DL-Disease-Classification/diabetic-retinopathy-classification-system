@@ -39,6 +39,7 @@ The model also **explains its prediction**: it highlights the regions of the ima
 ## Key findings so far
 
 - The Kaggle dataset we started from has **heavy train/test leakage**. Augmented copies of the same photo appear in train, validation and test: 46.5% of test files are versions of a training photo, rising to 95% for the Severe grade.
+- Behind its 45,327 files are only **24,916 distinct photos** (Severe: 1,267). After cleaning, the base dataset has **20,150** photos, one trustworthy file each. Every label was verified against the original datasets' official label files (100% agreement).
 - We will therefore **rebuild the split ourselves**. We also plan to evaluate on an **independent external dataset** (Messidor-2, pending supervisor approval). See [`1_datasets/README.md`](1_datasets/README.md) and [`notes/decision_log.md`](notes/decision_log.md).
 
 ## Results
@@ -67,7 +68,7 @@ notes/                 decision log and working notes
 
 ## Getting started
 
-We work in **Google Colab**.
+We work in **Google Colab**, either in the browser or in **VS Code with the official Colab extension** (Select Kernel → Colab). In VS Code, Colab Secrets may not work: the notebooks then ask for the Kaggle token in a password box.
 
 1. Open a notebook from this repo in Colab: **File → Open notebook → GitHub**. The first time, when Colab asks to authorise GitHub, **grant access to the `DL-Disease-Classification` organisation**, or the repo won't appear.
 2. Get a Kaggle API token (kaggle.com → Settings → API → *Generate New Token*). Add it to Colab **Secrets** (🔑 icon) as `KAGGLE_API_TOKEN` with notebook access on.

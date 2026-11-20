@@ -13,10 +13,10 @@
 
 ## Naming
 - Folders and files use `snake_case`.
-- Notebooks start with a number so their order is obvious: `02_filename_audit.ipynb`.
+- Notebooks start with a number so their order is obvious: `01_dataset_exploration.ipynb`.
 
 ## Notebooks from Colab
-- **File → Save a copy in GitHub**, then pick the repo, your branch and the path (e.g. `2_data_exploration/02_filename_audit.ipynb`).
+- **File → Save a copy in GitHub**, then pick the repo, your branch and the path (e.g. `2_data_exploration/01_dataset_exploration.ipynb`).
 - The repo belongs to the `DL-Disease-Classification` organisation. When Colab asks to authorise GitHub, tick **Include private repos** if needed and **grant access to the organisation**. Otherwise the repo won't appear in Colab's list.
 - The first cell of every notebook should clone the repo (see *Getting started* in the [README](README.md)) so `src/` can be imported.
 - Clear bulky outputs (big image grids) before saving.

@@ -20,8 +20,12 @@ This folder documents the data we use: where it comes from, how to get it, and i
 
 ```python
 import os, kagglehub
-from google.colab import userdata
-os.environ['KAGGLE_API_TOKEN'] = userdata.get('KAGGLE_API_TOKEN')
+try:   # Colab in the browser: token stored in Colab Secrets
+    from google.colab import userdata
+    os.environ['KAGGLE_API_TOKEN'] = userdata.get('KAGGLE_API_TOKEN')
+except Exception:   # VS Code + Colab extension: Secrets may not work, so type it in
+    from getpass import getpass
+    os.environ['KAGGLE_API_TOKEN'] = getpass('Paste your Kaggle API token: ')
 DATA_ROOT = kagglehub.dataset_download("sehastrajits/fundus-aptosddridirdeyepacsmessidor")
 DATA_DIR = os.path.join(DATA_ROOT, "split_dataset")
 ```
@@ -45,20 +49,47 @@ split_dataset/
 
 ### Where each image comes from (identified from filenames)
 
-| Filename pattern | Example | Source |
-|---|---|---|
-| `<number>_left/right-600` | `19109_left-600.jpg` | EyePACS (Kaggle 2015) |
-| 12 hex characters | `a963ac561580.png` | APTOS 2019 |
-| `GF` in the name | `9b093fe95d6b-GF-600-FF.jpg` | APTOS, Gaussian-filtered version |
-| 17-digit timestamp | `20170612163236281.jpg` | probably DDR (TODO: confirm) |
-| `nnn-nnnn-ggg` | `007-1590-000.jpg` | unknown (TODO: confirm). Last 3 digits look like a grade code |
-| `YYYYMMDD_nnnnn_nnnn_PP` | `20051020_53178_0100_PP.png` | Messidor (the `0100` is part of the ID, **not** a grade) |
-| `IM000xxx` | `IM000319.JPG` | Messidor-2 extension |
-| `IDRiD_nnn` | `IDRiD_006.jpg` | IDRiD |
+Every one of the 45,327 filenames matches one of these patterns. Decoding is in [`../src/dataset_index.py`](../src/dataset_index.py).
+
+| Filename pattern | Example | Source | Files | Distinct photos |
+|---|---|---|---|---|
+| `<number>_left/right-600` | `19109_left-600.jpg` | EyePACS (Kaggle 2015, train **and** test sets) | 30,189 | 16,501 |
+| 12 hex characters (`GF` = Gaussian-filtered version) | `a963ac561580.png`, `9b093fe95d6b-GF-600-FF.jpg` | APTOS 2019 | 10,363 | 3,662 |
+| `nnn-nnnn-nnn` | `007-1590-000.jpg` | DDR (the last number is **not** a grade) | 2,655 | 2,655 |
+| 17-digit timestamp | `20170612163236281.jpg` | DDR | 1,361 | 1,361 |
+| `YYYYMMDD_nnnnn_nnnn_PP` | `20051020_53178_0100_PP.png` | Messidor (the `0100` is part of the ID, **not** a grade) | 356 | 356 |
+| `IM000xxx` | `IM000319.JPG` | Messidor-2 extension | 170 | 170 |
+| `IDRiD_nnn` | `IDRiD_006.jpg` | IDRiD | 233 | 211 |
+| **Total** | | | **45,327** | **24,916** |
+
+### ✅ Labels verified against the original datasets
+
+Every photo we train on was matched, by name, to its original dataset's **official label file**, and the folder label compared:
+
+| Source | Official label file | Photos found | Folder label = official |
+|---|---|---|---|
+| EyePACS | `trainLabels.csv` + test-set `retinopathy_solution.csv` (Kaggle 2015 competition) | 16,501 / 16,501 | **100%** |
+| APTOS 2019 | `train.csv` (Kaggle competition) | 3,662 / 3,662 | **100%** |
+| DDR | `train.txt`, `valid.txt`, `test.txt` (two independent mirrors, 100% identical) | 4,016 / 4,016 | **100%** (none officially "ungradable") |
+
+So the creator did **not** change any labels for these sources. (IDRiD is the exception, see issue 4. Messidor is reserved for the external test.) Notebook steps 11–12.
 
 ### Augmentation codes in filenames
 
-Suffixes like `-HB`, `-HFF`, `-FA`, `-FS`, `-ALL`, `-SF`, `-HF`, `-BF`, `-FF` and `-HBF` mark **augmented copies** (flips, brightness changes, etc.) of an original photo. TODO: decode each code visually.
+Measured on **all** ~14,100 copies that still have their original (notebook step 9). The acceptance envelope was **fixed before** looking at the results: brightness/contrast/saturation ×0.80–1.25, red/green ×0.90–1.10, zoom ×0.95–1.05.
+
+| Family | Codes | What it does (median [5th–95th percentile]) | Inside envelope | Use |
+|---|---|---|---|---|
+| **A: geometry only** | `FF`, `BF` | Random flips/rotation; colour unchanged (red/green 1.00 [1.00–1.01]) | 90% | ✅ Base dataset |
+| **B: random hue shift** | `HB`, `HBF`, `HF`, `HFF`, `ALL` | Random flips + large random hue shift (red/green 0.99 [0.60–2.18]) | 22–26% | 🧪 Optional add-on, train only, tested in D-009 |
+| **C: darker + oversaturated** | `FS`, `SF` | Darker (0.83), saturation +47%, redder | 12–14% | ❌ Never |
+| **D: strong brightening** | `FA` | Brightness ×1.60 [1.41–2.53] | 0% | ❌ Never |
+
+In every code: no crops or zoom (zoom 1.00), and no odd-angle rotations (alignment match ≥ 0.95 for 95% of pairs).
+
+The grey, heavily processed look in some copies isn't caused by any code. Those copies were made **from the Gaussian-filtered (`GF`) APTOS images**: 100% of `GF` files look grey, versus 0.1% of plain files.
+
+*Limitation:* brightness ratios exaggerate changes in very dark photos, so some family A copies fall outside the envelope only on brightness.
 
 ### ⚠️ Known issues (found in our audit, `2_data_exploration/`)
 
@@ -68,13 +99,38 @@ Suffixes like `-HB`, `-HFF`, `-FA`, `-FS`, `-ALL`, `-SF`, `-HF`, `-BF`, `-FF` an
    - **54% of val** and **46.5% of test** files are versions of a photo that is also in train.
    - By grade in test: Severe 95%, Proliferative 87%, Mild 76%, Moderate 25%, No DR 2%.
    - ➜ **The provided split cannot be used for evaluation.**
-3. **Far fewer real images than files.** Train Severe has 5,968 files but only 1,157 distinct photos.
-4. **Label conflicts.** 22 photos appear under more than one grade.
-5. **Possible label changes.** For `nnn-nnnn-ggg` files, the grade code in the name often differs from the folder label. Still to be verified.
+3. **Far fewer real images than files.**
+   - Only **24,916 distinct photos**: No DR 9,811 · Mild 3,704 · Moderate 7,561 · **Severe 1,267** · Proliferative 2,551.
+   - Severe averages **6.7 files per photo**.
+4. **IDRiD labels are unreliable.** 22 IDRiD files appear under two different grades, and each pair is the **byte-identical file**. Likely cause: IDRiD's train and test sets both number from `IDRiD_001`, and grades were matched by name. ➜ **All IDRiD files are dropped.**
+5. ~~Possible label changes in DDR files~~. **Resolved:** the last number in DDR names is not a grade, and the folder labels match DDR's official labels 100%.
 6. **Patient leakage.** For 3,581 EyePACS patients, the left and right eye sit in different splits.
-7. **Mixed preprocessing.** Some APTOS photos are present both as the original and as a Gaussian-filtered version.
+7. **Mixed preprocessing.** APTOS photos appear both as originals and as Gaussian-filtered (`GF`) versions, and augmented copies were also made from the `GF` versions.
+8. **4,020 photos exist only as augmented copies:** Mild 1,573, Moderate 2,130, Proliferative 313, Severe 4.
 
 How we handle each issue is recorded in [`../notes/decision_log.md`](../notes/decision_log.md).
+
+### ✅ Clean dataset (selection rule v3, D-007)
+
+Built with [`../src/selection.py`](../src/selection.py):
+- one file per photo;
+- IDRiD and Messidor removed;
+- no `GF`/grey files;
+- copies only when no original exists, preferring family A over family B.
+
+| | No DR | Mild | Moderate | Severe | Proliferative | Total |
+|---|---|---|---|---|---|---|
+| Originals | 9,561 | 2,007 | 5,296 | 1,119 | 2,165 | 20,148 |
+| Family A copies | 0 | 0 | 0 | 2 | 0 | 2 |
+| **Base dataset** | **9,561** | **2,007** | **5,296** | **1,121** | **2,165** | **20,150** |
+| Family B copies (optional add-on, train only) | 0 | 1,177 | 2,130 | 0 | 298 | 3,605 |
+| Free to split into train/val/test* | 9,491 | 1,806 | 4,903 | 1,089 | 1,996 | 19,285 |
+
+\* Not a copy, and not the other eye of a patient who has a copy (those stay in train). The split is made once on the full selection, so validation and test are the same whether or not the add-on is used.
+
+Dropped because no acceptable version exists: Mild 396, Proliferative 25, Severe 2, Moderate 1.
+
+⏳ **Still to check before the split:** duplicate photos under *different* names (pixel-level check, `2_data_exploration/02_image_audit.ipynb`).
 
 ---
 
