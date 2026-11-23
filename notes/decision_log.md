@@ -46,13 +46,13 @@ Write down what we decided, *why*, and what we rejected, so we (and the examiner
 - **Context:** the docs assumed the images are ~600 px. Enlarging a small photo adds no detail.
 - **Decision:**
   - Rule: the input size must not exceed the shorter side of 95% of base-dataset photos.
-  - Measured: 99.9% have a shorter side of at least 512 px, so the input is **at most 512 px**.
+  - Measured: 99.8% have a shorter side of at least 512 px, so the input is **at most 512 px**.
   - The exact size is chosen with the baseline.
 - **Evidence:** `2_data_exploration/02_image_audit.ipynb`, step 4.
   - EyePACS: all 600×600.
   - DDR: mostly 512×512 (3,224 of 4,016 files).
   - APTOS: originals 358–2,848 px; `-600` copies 600×600.
-  - The "~600 px" assumption is not confirmed: only 66% of base photos have a shorter side of 550–650 px.
+  - The "~600 px" assumption is not confirmed: only 63% of base photos have a shorter side of 550–650 px (measured after the D-007 tie-break of 2026-11-23).
 - **Consequence: APTOS image size depends on the grade** (step 4, measured on the originals only):
   - median shorter side: No DR 1,050 px; Mild 1,736, Moderate 1,958, Severe 1,944, PDR 1,958;
   - APTOS seems to have photographed healthy and diseased eyes differently (likely different cameras or clinics);
