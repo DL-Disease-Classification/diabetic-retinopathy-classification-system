@@ -21,6 +21,65 @@ Write down what we decided, *why*, and what we rejected, so we (and the examiner
 
 ---
 
+## D-014: How the near-duplicate threshold is chosen
+- **Date:** 2026-11-21
+- **Status:** ✅ Accepted (fixed before the matcher is run on the real data)
+- **Decided by:** Malak (data audit, issue #5)
+- **Context:**
+  - Byte-identical copies are found exactly (D-012).
+  - Copies that were resized, re-compressed, flipped or recoloured need a similarity score and a threshold.
+  - Choosing the threshold by looking at a few pairs is the small-sample approach that misled us in notebook 01.
+- **Decision:** the threshold is set from pairs whose answer is known, measured in full, before any unknown pair is looked at.
+  - **Same photo:** all ~14,100 copy/original pairs known by name, and every base photo re-saved by code (resized, re-compressed, cropped a few %).
+  - **Different eyes:** all EyePACS left/right pairs of the same patient, and each EyePACS photo's closest DDR photo (US vs China, so a real duplicate is implausible).
+  - **Pass rule:** ≥ 99% found on both same-photo sets, and ≤ 0.1% false matches on both different-eye sets. If both can't be met, the matcher is improved, not the threshold.
+  - **Visual check afterwards:** every accepted match across different names (a random sample per score band if there are hundreds), plus the band just below the threshold.
+- **Limit:** there are no known examples of the same eye photographed twice, so the matcher can't be calibrated for that case. Those pairs are listed separately and judged by eye.
+- **Alternatives considered:**
+  - Choosing the threshold visually from side-by-side pairs. Rejected: small sample, subjective.
+  - Reusing a threshold from earlier tests on stand-in data. Rejected: there, augmented copies and different eyes overlapped.
+
+## D-013: Model input size at most 512 px
+- **Date:** 2026-11-21
+- **Status:** ✅ Accepted (rule fixed before measuring)
+- **Decided by:** Malak (data audit, issue #5)
+- **Context:** the docs assumed the images are ~600 px. Enlarging a small photo adds no detail.
+- **Decision:**
+  - Rule: the input size must not exceed the shorter side of 95% of base-dataset photos.
+  - Measured: 99.9% have a shorter side of at least 512 px, so the input is **at most 512 px**.
+  - The exact size is chosen with the baseline.
+- **Evidence:** `2_data_exploration/02_image_audit.ipynb`, step 4.
+  - EyePACS: all 600×600.
+  - DDR: mostly 512×512 (3,224 of 4,016 files).
+  - APTOS: originals 358–2,848 px; `-600` copies 600×600.
+  - The "~600 px" assumption is not confirmed: only 66% of base photos have a shorter side of 550–650 px.
+- **Consequence: APTOS image size depends on the grade** (step 4, measured on the originals only):
+  - median shorter side: No DR 1,050 px; Mild 1,736, Moderate 1,958, Severe 1,944, PDR 1,958;
+  - APTOS seems to have photographed healthy and diseased eyes differently (likely different cameras or clinics);
+  - resizing to one input size hides the size, but not necessarily the camera's look. The selection can't remove this;
+  - check it during training: results per source, and Grad-CAM (does the model look at the retina or at the edges?).
+  - (In the first run, the selected APTOS photos looked as if Severe photos were 600 px. That part came from the selection rule and is fixed in D-007.)
+
+## D-012: Duplicate photos under different names
+- **Date:** 2026-11-21
+- **Status:** ✅ Accepted. Applied after the near-duplicate check (D-014), together with the near copies it finds.
+- **Decided by:** Malak (data audit, issue #5)
+- **Context:** `2_data_exploration/02_image_audit.ipynb`, steps 5–6.
+  - 177 groups of byte-identical files carry different photo names. They form **135 duplicate photo groups** (275 photo IDs).
+  - All are within one source: APTOS 123, DDR 9, Messidor-1 2, IDRiD 1.
+  - **31 groups have conflicting grades** (30 APTOS, 1 IDRiD); 9 differ by 2 grades or more.
+  - Our labels match APTOS's official `train.csv` 100%, so these conflicts are in APTOS's own labels.
+- **Decision:**
+  1. Same photo with **different grades** → drop all of its copies from the training pool. The true grade is unknown.
+  2. Same photo with the **same grade** → keep one photo: the original, then family A, then family B.
+  3. Any match with a **Messidor** photo → remove it from the training pool, so the external test stays untouched.
+  4. Related (steps 2–3): a nearly black original (pixel std < 5) excludes that file only. The photo may still be used through one of its copies.
+- **Effect (exact duplicates only):** 167 photos removed (62 with conflicting grades, 105 extra copies). Base dataset 20,145 → 19,978; Severe loses 16.
+- **Alternatives considered:**
+  - Keep one grade of a conflicting pair. Rejected: there is no way to know which is right.
+  - Keep all duplicates. Rejected: the same photo would count twice and could leak across our own split.
+  - For point 4, drop the whole photo when its original fails. Rejected by Malak on 2026-11-21.
+
 ## D-011: Trust the folder labels (verified)
 - **Date:** 2026-11-20
 - **Status:** ✅ Accepted
@@ -70,8 +129,8 @@ Write down what we decided, *why*, and what we rejected, so we (and the examiner
 - **Evidence:** `2_data_exploration/01_dataset_exploration.ipynb`, step 5c.
 
 ## D-007: Selection rule (v3): one trustworthy file per photo
-- **Date:** 2026-11-19, revised 2026-11-20
-- **Status:** ✅ Accepted for *which file to keep per photo*. Final counts depend on the pixel-level duplicate check (still to do).
+- **Date:** 2026-11-19, revised 2026-11-20 and 2026-11-23
+- **Status:** ✅ Accepted for *which file to keep per photo*. Final counts depend on the duplicate checks (D-012, D-014).
 - **Decided by:** Malak (data audit, issue #5)
 - **Context:**
   - 24,916 distinct photos sit behind 45,327 files.
@@ -81,13 +140,17 @@ Write down what we decided, *why*, and what we rejected, so we (and the examiner
   1. Drop IDRiD (D-008) and Messidor (external test, D-005).
   2. Drop `GF` files and grey-processed files.
   3. Keep **one file per photo**, preferring: original → family A (`FF`, `BF`) → family B (`HFF`, `HB`, `HF`, `HBF`, `ALL`). Never family C (`FS`, `SF`) or D (`FA`).
+     - *Added 2026-11-23:* among files of the same rank, prefer the full-size original over the uploader's resized `-600` copy (e.g. APTOS `x.png` over `x-600.jpg`), then the file name.
+     - Before this, the rule kept whichever file came first in folder order. For APTOS that meant the 600 px copy for 629 of 3,661 photos, strongly linked to the grade (No DR 7%, Severe 63%): a shortcut a model could learn (`02_image_audit.ipynb`, step 4).
+     - The change affects which file is kept, not which photos, so the counts don't change.
   4. **Base dataset** = originals + family A (20,150 photos). Family B copies (3,605) are flagged and only used in the D-009 experiment.
   5. Every copy, and the other eye of the same EyePACS patient, is **train only**. The split is made once on the full selection, so validation and test are identical with or without family B.
 - **Alternatives considered:**
   - v2 (keep family B in the base set). Rejected: 74–78% of family B copies fall outside the envelope, almost all because of their colour (red/green) shift.
   - Drop all copies. That's effectively the base dataset; family B is then tested, not assumed.
+  - For the tie-break (2026-11-23): keep the folder-order choice. Rejected, because the file type would stay linked to the grade, and the choice would depend on an arbitrary order.
 - **Consequences:** Implemented in `src/selection.py`.
-- **Evidence:** `2_data_exploration/01_dataset_exploration.ipynb`, steps 5–10.
+- **Evidence:** `2_data_exploration/01_dataset_exploration.ipynb`, steps 5–10; `2_data_exploration/02_image_audit.ipynb`, step 4 (tie-break).
 
 ## D-006: Main evaluation metrics
 - **Date:** 2026-11-17

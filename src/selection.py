@@ -6,7 +6,10 @@ Rule (``notes/decision_log.md``, D-007; D-008 for IDRiD):
    (reserved for the external test set).
 2. Drop Gaussian-filtered (GF) files and any file with the grey "processed" look.
 3. For each photo keep ONE file, preferring the original, then family A copies,
-   then family B copies. Families C and D are never used.
+   then family B copies. Families C and D are never used. Among files of the same rank,
+   prefer the full-size original over the uploader's resized "-600" copy (e.g. APTOS
+   ``x.png`` over ``x-600.jpg``), then the file name, so the choice never depends on
+   folder order (``02_image_audit.ipynb``, step 4).
 4. Every kept copy, and every photo of the same EyePACS patient, is ``train_only``:
    validation and test contain real, untouched photos only.
 
@@ -69,6 +72,19 @@ def add_look_stats(df, workers=8):
     return df
 
 
+def is_resized(fname, base_id):
+    """True if the name carries the uploader's ``600`` resize marker, e.g. ``a963ac561580-600.jpg``.
+
+    Only the part after the photo ID is checked, so a DDR name such as ``007-1590-600``,
+    whose last number is part of the ID, is not mistaken for a resized copy.
+    """
+    stem = fname.rsplit(".", 1)[0]
+    if stem.startswith("GF-"):
+        stem = stem[3:]
+    rest = stem[len(base_id):] if stem.startswith(base_id) else stem
+    return "600" in rest.split("-")
+
+
 def select_clean_photos(df):
     """Apply rule v3. ``df`` needs the columns from ``build_index`` and ``add_look_stats``.
 
@@ -78,9 +94,10 @@ def select_clean_photos(df):
             & ~df["source"].isin(EXCLUDED_SOURCES))
     cand = df[keep].copy()
     cand["rank"] = cand["aug"].map({code: i for i, code in enumerate(PRIORITY)})
-    clean = (cand.sort_values(["base_id", "rank"])
+    cand["resized"] = [is_resized(f, b) for f, b in zip(cand["fname"], cand["base_id"])]
+    clean = (cand.sort_values(["base_id", "rank", "resized", "fname"])
                  .drop_duplicates("base_id")
-                 .drop(columns="rank")
+                 .drop(columns=["rank", "resized"])
                  .reset_index(drop=True))
     clean["family"] = clean["aug"].map(FAMILY)
     clean["is_copy"] = clean["aug"] != "none"
