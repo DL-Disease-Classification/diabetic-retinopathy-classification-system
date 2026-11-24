@@ -21,6 +21,35 @@ Write down what we decided, *why*, and what we rejected, so we (and the examiner
 
 ---
 
+## D-015: The near-duplicate matcher: method, development data and scope
+- **Date:** 2026-11-24
+- **Status:** ✅ Accepted (method and scope). Whether it passes on our data is decided by D-014's rule in notebook 03.
+- **Decided by:** Malak (data audit, issue #5)
+- **Context:**
+  - Exact copies are found by fingerprints (D-012).
+  - Near copies (resized, re-compressed, squeezed, flipped, recoloured) need a matcher.
+  - Developing it directly on our dataset was too slow: one full run takes about an hour.
+- **Decision:**
+  1. **Method:** compare **vessel patterns** (`src/duplicates.py`).
+     - The field of view is found and mapped onto a fixed square.
+     - A black top-hat keeps the vessels, computed from the green and the brightest channel.
+     - A quick search finds candidates over the 8 flips / 90° turns, and a full score is computed for each candidate.
+  2. **Development data:** the method was built and checked on the public DeepDRiD dataset (1,600 photos, two of each eye), with copies made like ours. It only prepared the method; the threshold and the verdict come from our data (D-014).
+  3. **D-014's rule made precise:**
+     - the threshold is the lowest score at which both different-eye sets have at most 0.1% false matches;
+     - a same-photo pair counts as found only if the quick search (10 candidates) finds it **and** its score reaches the threshold.
+  4. **Scope:** the matcher finds the same **photo**, not every photo of the same eye.
+     - EyePACS: both eyes of a patient are kept together in the split through the patient number (issue #4).
+     - APTOS and DDR have **no patient IDs**, so two different photos of the same eye there can't be detected. This is stated as a limitation.
+- **Alternatives considered:**
+  - Perceptual hashes. Rejected: they mostly encode the shared bright-disc-on-black shape.
+  - An earlier log-polar fingerprint. Rejected: on stand-in data its copies (0.29–0.70) and different eyes (up to 0.32) overlapped.
+  - Developing on our own data. Rejected: about 1 h per round.
+- **Evidence:** `2_data_exploration/matcher_development/README.md`, the DeepDRiD results:
+  - threshold 0.669;
+  - 99.4–100% of every kind of copy at or above it;
+  - 1 false match in 3,189 different-eye pairs.
+
 ## D-014: How the near-duplicate threshold is chosen
 - **Date:** 2026-11-21
 - **Status:** ✅ Accepted (fixed before the matcher is run on the real data)
